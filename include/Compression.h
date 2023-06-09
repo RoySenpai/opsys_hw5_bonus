@@ -93,10 +93,11 @@ int Bzip2_Decompress(void* compressed_data, uint32_t compressed_size, void** dat
 
 /*
  * @brief A function that prints an error message according to a given Bzip2 error code.
+ * @param func_name The name of the function that returned the error code.
  * @param bzerror The Bzip2 error code.
  * @return void.
  * @note The function prints the error message to stderr.
 */
-void Bzip2_print_error(int bzerror);
+void Bzip2_print_error(const char *func_name, int bzerror);
 
 #endif // _COMPRESSION_MAIL_H

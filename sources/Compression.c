@@ -18,6 +18,7 @@
 
 #include "../include/Compression.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 int Bzip2_Compress(void* data, uint32_t size, void** compressed_data, uint32_t* compressed_size) {
 	bz_stream* strm = (bz_stream*)malloc(sizeof(bz_stream));

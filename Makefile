@@ -23,6 +23,11 @@ INCLUDE_PATH = include
 SOURCES = $(wildcard $(SOURCE_PATH)/*.c)
 HEADERS = $(wildcard $(INCLUDE_PATH)/*.h)
 OBJECTS = $(subst sources/,objects/,$(subst .c,.o,$(SOURCES)))
+CLIENT_OBJECTS = Client.o Tasks.o Encoding.o Encryption.o Compression.o Mail.o ActiveObject.o Queue.o Task.o
+SERVER_OBJECTS = Server.o
+
+OBJ_C = $(addprefix $(OBJECT_PATH)/, $(CLIENT_OBJECTS))
+OBJ_S = $(addprefix $(OBJECT_PATH)/, $(SERVER_OBJECTS))
 
 # Phony targets - targets that are not files but commands to be executed by make.
 .PHONY: all default clean
@@ -37,10 +42,10 @@ default: all
 ############
 # Programs #
 ############
-mail_client: $(OBJECT_PATH)/Client.o $(OBJECT_PATH)/Tasks.o $(OBJECT_PATH)/Encryption.o $(OBJECT_PATH)/Mail.o $(OBJECT_PATH)/ActiveObject.o $(OBJECT_PATH)/Queue.o $(OBJECT_PATH)/Task.o
+mail_client: $(OBJ_C)
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS) $(PFLAGS)
 
-mail_server: $(OBJECT_PATH)/Server.o
+mail_server: $(OBJ_S)
 	$(CC) $(CFLAGS) -o $@ $^
 
 ################
