@@ -18,6 +18,7 @@
 
 #include "../include/Compression.h"
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
 
 int Bzip2_Compress(void* data, uint32_t size, void** compressed_data, uint32_t* compressed_size) {
@@ -126,8 +127,8 @@ int Bzip2_Decompress(void* compressed_data, uint32_t compressed_size, void** dat
 	strm->next_in = (char*)compressed_data;
 	strm->avail_in = compressed_size;
 
-	// Allocate memory for the decompressed data.
-	*data = malloc(compressed_size);
+	// Allocate memory for the decompressed data, temporarily allocate 10 times the size of the compressed data, we will increase the size later if needed.
+	*data = malloc(compressed_size * 10);
 
 	// Check the return value of the memory allocation.
 	if (*data == NULL)
@@ -140,18 +141,47 @@ int Bzip2_Decompress(void* compressed_data, uint32_t compressed_size, void** dat
 
 	// Set the output buffer.
 	strm->next_out = (char*)*data;
-	strm->avail_out = compressed_size;
+	strm->avail_out = (compressed_size * 10);
 
-	ret = BZ2_bzDecompress(strm);
-
-	// Check the return value of the decompression function.
-	if (ret != BZ_STREAM_END)
+	while (true)
 	{
-		Bzip2_print_error("Bzip2_Decompress()", ret);
-		BZ2_bzDecompressEnd(strm);
-		free(strm);
-		free(*data);
-		return 1;
+		// Check if the output buffer is full.
+		if (strm->avail_out == 0)
+		{
+			// Increase the size of the output buffer.
+			*data = realloc(*data, strm->total_out_lo32 * 2);
+
+			// Check the return value of the memory allocation.
+			if (*data == NULL)
+			{
+				perror("Error: Bzip2_Decompress() failed: realloc() failed");
+				BZ2_bzDecompressEnd(strm);
+				free(strm);
+				free(*data);
+				return 1;
+			}
+
+			// Set the output buffer, as the memory address of the output buffer might have changed.
+			strm->next_out = (char*)*data + strm->total_out_lo32;
+			strm->avail_out = strm->total_out_lo32;
+		}
+
+		// Check if the input buffer is empty - if yes, break the loop, as we have decompressed all the data.
+		if (strm->avail_in == 0)
+			break;
+
+		// Decompress the data.
+		ret = BZ2_bzDecompress(strm);
+
+		// Check the return value of the decompression function.
+		if (ret != BZ_OK && ret != BZ_STREAM_END)
+		{
+			Bzip2_print_error("Bzip2_Decompress()", ret);
+			BZ2_bzDecompressEnd(strm);
+			free(strm);
+			free(*data);
+			return 1;
+		}
 	}
 
 	ret = BZ2_bzDecompressEnd(strm);

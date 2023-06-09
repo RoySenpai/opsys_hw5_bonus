@@ -51,9 +51,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define ENC(c) ((c) ? ((c) & 077) + ' ': '`')
-#define DEC(c) (((c) - ' ') & 077)
-
 int UUEncode(const char *data, const uint32_t data_size, char **encoded_data, uint32_t *encoded_data_size) {
 	// Force *encoded_data to be NULL as we allocate the data in this function.
 	if (data == NULL || encoded_data == NULL || encoded_data_size == NULL || *encoded_data != NULL)
@@ -64,7 +61,7 @@ int UUEncode(const char *data, const uint32_t data_size, char **encoded_data, ui
 
 	else if (data_size == 0)
 	{
-		fprintf(stderr, "Error: UUUEncode(): Invalid data size.\n");
+		fprintf(stderr, "Error: UUEncode(): Invalid data size.\n");
 		return 1;
 	}
 
@@ -88,7 +85,7 @@ int UUEncode(const char *data, const uint32_t data_size, char **encoded_data, ui
 	// Check if the allocation succeeded
 	if (*encoded_data == NULL)
 	{
-		fprintf(stderr, "Error: UUUEncode(): Failed to allocate memory for the encoded data.\n");
+		fprintf(stderr, "Error: UUEncode(): Failed to allocate memory for the encoded data.\n");
 		return 1;
 	}
 
@@ -136,13 +133,13 @@ int UUDecode(const char *encoded_data, const uint32_t encoded_data_size, char **
 	// Force *data to be NULL as we allocate the data in this function.
 	if (encoded_data == NULL || data == NULL || data_size == NULL || *data != NULL)
 	{
-		fprintf(stderr, "UUDecode: Invalid arguments.\n");
+		fprintf(stderr, "UUDecode(): Invalid arguments.\n");
 		return 1;
 	}
 
 	else if (data_size == 0)
 	{
-		fprintf(stderr, "UUEncode: Invalid data size.\n");
+		fprintf(stderr, "UUDecode(): Invalid data size.\n");
 		return 1;
 	}
 

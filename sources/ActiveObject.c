@@ -19,6 +19,7 @@
 #include "../include/ActiveObject.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <signal.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -89,10 +90,12 @@ void stopActiveObject(PActiveObject activeObject) {
 
 	unsigned int id = activeObject->id;
 
-	// Gracefully stop the thread, if it is running
+	// Gracefully stop the thread, if it is still running
 	pthread_cancel(activeObject->thread);
 	activeObject->func = NULL;
-	pthread_join(activeObject->thread, NULL);
+
+	// Wait for the thread to end
+	//pthread_join(activeObject->thread, NULL);
 
 	queueDestroy(activeObject->queue);
 	free(activeObject);

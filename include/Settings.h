@@ -45,6 +45,13 @@
 #define DEBUG_MESSAGES			1
 
 /*
+ * @brief Mail server IP address, that the client will connect to.
+ * @note The default value is 127.0.0.1 (localhost).
+ * @note The value must be a valid IPv4 address.
+*/
+#define MAIL_SERVER_IP 		"127.0.0.1"
+
+/*
  * @brief Mail server port, that the server will listen to.
  * @note The default value is port 9999 (TCP, IPv4, custom port for the vSMTP protocol).
 */

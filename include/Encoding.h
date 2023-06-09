@@ -25,9 +25,24 @@
 
 #include "Settings.h"
 
-/********************/
-/* Settings Section */
-/********************/
+/******************/
+/* Macros Section */
+/******************/
+
+/*
+ * @brief A macro that encodes a given character using Unix to Unix encoding.
+ * @param c The character to encode.
+ * @return The encoded character.
+*/
+#define ENC(c) ((c) ? ((c) & 077) + ' ': '`')
+
+/*
+ * @brief A macro that decodes a given character using Unix to Unix encoding.
+ * @param c The character to decode.
+ * @return The decoded character.
+*/
+#define DEC(c) (((c) - ' ') & 077)
+
 
 /*********************************/
 /* Functions Declaretion Section */

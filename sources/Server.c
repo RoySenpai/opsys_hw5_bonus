@@ -26,6 +26,8 @@
 #include <string.h>
 #include <unistd.h>
 
+PMail mail_list = NULL;
+
 int main(void) {
 	struct sockaddr_in server_addr = {
 		.sin_family = AF_INET,
@@ -33,7 +35,16 @@ int main(void) {
 		.sin_addr.s_addr = INADDR_ANY
 	};
 
+	fprintf(stdout, "\t\t\t\033[0;36mMail Server\n"
+					"\tCopyright (C) 2023  Roy Simanovich and Linor Ronen\n"
+					"\tThis program comes with ABSOLUTELY NO WARRANTY.\n"
+					"\tThis is free software, and you are welcome to redistribute it\n"
+					"\tunder certain conditions; see `LICENSE' for details.\033[0;37m\n\n");
+	
+	fprintf(stdout, "Mail Server startup...\n");
+
 	int server_socket = socket(AF_INET, SOCK_STREAM, 0);
+	int reuse = 1;
 
 	if (server_socket < 0)
 	{
@@ -41,17 +52,28 @@ int main(void) {
 		return 1;
 	}
 
+	if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0)
+	{
+		perror("Error: setsockopt failed");
+		close(server_socket);
+		return 1;
+	}
+
 	if (bind(server_socket, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
 	{
 		perror("Error: bind failed");
+		close(server_socket);
 		return 1;
 	}
 
 	if (listen(server_socket, MAIL_MAX_CLIENTS) < 0)
 	{
 		perror("Error: listen failed");
+		close(server_socket);
 		return 1;
 	}
+
+	fprintf(stdout, "Mail Server is up and running on port %d\n", MAIL_SERVER_PORT);
 
 	PMail mail_list = NULL;
 
@@ -67,6 +89,8 @@ int main(void) {
 			return 1;
 		}
 
+		fprintf(stdout, "Client connected from %s:%d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+
 		char buffer[MAIL_MAX_BUFFER_SIZE];
 		int bytes_read = recv(client_socket, buffer, MAIL_MAX_BUFFER_SIZE, 0);
 
@@ -78,7 +102,7 @@ int main(void) {
 
 		else if (bytes_read == 0)
 		{
-			fprintf(stderr, "Error: Client disconnected\n");
+			fprintf(stderr, "Warning: Client disconnected mid-connection\n");
 			close(client_socket);
 			continue;
 		}

@@ -19,6 +19,7 @@
 #ifndef _TASKS_H
 #define _TASKS_H
 
+#include "Encoding.h"
 #include "Compression.h"
 #include "Encryption.h"
 #include "Mail.h"

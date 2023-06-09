@@ -35,10 +35,10 @@
  * @brief Specifies the block size to be used for compression.
  * @note It should be a value between 1 and 9 inclusive, and the actual block size used is 100000 x this figure.
  * @note 9 gives the best compression but takes most memory. 1 gives the worst compression but uses least memory.
- * @note The default value is 9.
+ * @note The default value is 3.
  * @note Please refer to the Bzip2 documentation for more information.
 */
-#define BZIP2_BLOCK_SIZE		9
+#define BZIP2_BLOCK_SIZE		3
 
 /*
  * @brief Specifies the verbosity level to be used for compression.
@@ -47,7 +47,7 @@
  * @note The default value is 0.
  * @note Please refer to the Bzip2 documentation for more information.
 */
-#define BZIP2_VERBOSITY			0
+#define BZIP2_VERBOSITY			4
 
 /*
  * @brief Specifies the work factor to be used for compression.
