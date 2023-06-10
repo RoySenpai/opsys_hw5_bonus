@@ -36,8 +36,8 @@ HEADERS = $(wildcard $(INCLUDE_PATH)/*.h)
 OBJECTS = $(subst sources/,objects/,$(subst .c,.o,$(SOURCES)))
 
 # Variables for the client and server object files.
-CLIENT_OBJECTS = Client.o Tasks.o Encoding.o Encryption.o Compression.o Mail.o ActiveObject.o Queue.o Task.o
-SERVER_OBJECTS = Server.o
+CLIENT_OBJECTS = Client.o LinkedList.o Tasks.o Encoding.o Encryption.o Compression.o Mail.o ActiveObject.o Queue.o Task.o
+SERVER_OBJECTS = Server.o LinkedList.o
 
 # Variables for the object files.
 OBJ_C = $(addprefix $(OBJECT_PATH)/, $(CLIENT_OBJECTS))
@@ -81,4 +81,4 @@ $(OBJECT_PATH)/%.o: $(SOURCE_PATH)/%.c $(HEADERS)
 
 # Remove all the object files, shared libraries and executables.
 clean:
-	$(RM) $(OBJECTS) *.so mail_client mail_server
+	$(RM) $(OBJECT_PATH)/*.o *.so mail_client mail_server

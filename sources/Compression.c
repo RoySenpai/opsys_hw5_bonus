@@ -24,11 +24,11 @@
 int Bzip2_Compress(void* data, uint32_t size, void** compressed_data, uint32_t* compressed_size) {
 	bz_stream* strm = (bz_stream*)malloc(sizeof(bz_stream));
 
-    if (strm == NULL)
-    {
-        perror("Error: Bzip2_Compress() failed: malloc() failed");
-        return 1;
-    }
+	if (strm == NULL)
+	{
+		perror("Error: Bzip2_Compress() failed: malloc() failed");
+		return 1;
+	}
 
 	// Use the standard C library memory allocation routines, as we don't actually need any special allocation routines.
 	strm->bzalloc = NULL;
@@ -36,7 +36,8 @@ int Bzip2_Compress(void* data, uint32_t size, void** compressed_data, uint32_t* 
 	strm->opaque = NULL;
 
 	// Initialize the compression library.
-	int ret = BZ2_bzCompressInit(strm, 9, 0, 0);
+	int ret = 0;
+	ret = BZ2_bzCompressInit(strm, 9, 0, 0);
 
 	// Check the return value of the initialization function.
 	if (ret != BZ_OK)
@@ -45,6 +46,9 @@ int Bzip2_Compress(void* data, uint32_t size, void** compressed_data, uint32_t* 
 		free(strm);
 		return 1;
 	}
+
+	if (DEBUG_MESSAGES)
+		fprintf(stdout, "Bzip2_Compress(): Compressing %d bytes\n", size);
 
 	// Compress the data.
 	strm->next_in = (char*)data;
@@ -95,17 +99,20 @@ int Bzip2_Compress(void* data, uint32_t size, void** compressed_data, uint32_t* 
 	*compressed_size = strm->total_out_lo32;
 	free(strm);
 
+	if (DEBUG_MESSAGES)
+		fprintf(stdout, "Bzip2_Compress(): Compressed %d bytes to %d bytes\n", size, *compressed_size);
+
 	return 0;
 }
 
 int Bzip2_Decompress(void* compressed_data, uint32_t compressed_size, void** data, uint32_t* size) {
 	bz_stream* strm = (bz_stream*)malloc(sizeof(bz_stream));
 
-    if (strm == NULL)
-    {
-        perror("Error: Bzip2_Decompress() failed: malloc() failed");
-        return 1;
-    }
+	if (strm == NULL)
+	{
+		perror("Error: Bzip2_Decompress() failed: malloc() failed");
+		return 1;
+	}
 
 	// Use the standard C library memory allocation routines, as we don't actually need any special allocation routines.
 	strm->bzalloc = NULL;
@@ -122,6 +129,9 @@ int Bzip2_Decompress(void* compressed_data, uint32_t compressed_size, void** dat
 		free(strm);
 		return 1;
 	}
+
+	if (DEBUG_MESSAGES)
+		fprintf(stdout, "Bzip2_Decompress(): Decompressing %d bytes\n", compressed_size);
 
 	// Decompress the data.
 	strm->next_in = (char*)compressed_data;
@@ -198,6 +208,9 @@ int Bzip2_Decompress(void* compressed_data, uint32_t compressed_size, void** dat
 	// Set the size of the decompressed data, free the memory of the stream and return.
 	*size = strm->total_out_lo32;
 	free(strm);
+
+	if (DEBUG_MESSAGES)
+		fprintf(stdout, "Bzip2_Decompress(): Decompressed %d bytes to %d bytes\n", compressed_size, *size);
 
 	return 0;
 }

@@ -60,8 +60,7 @@ int main(void) {
 	AO_Receive[1] = CreateActiveObject(AO_Task_Decompress);
 	AO_Receive[2] = CreateActiveObject(AO_Task_Decode);
 
-	if (AO_Send[0] == NULL || AO_Send[1] == NULL || AO_Send[2] == NULL ||
-		AO_Receive[0] == NULL || AO_Receive[1] == NULL || AO_Receive[2] == NULL)
+	if (AO_Send[0] == NULL || AO_Send[1] == NULL || AO_Send[2] == NULL || AO_Receive[0] == NULL || AO_Receive[1] == NULL || AO_Receive[2] == NULL)
 	{
 		fprintf(stderr, "Error: main() failed: AO_Create() failed.\n");
 		
@@ -103,7 +102,7 @@ int main(void) {
 
 	if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
 	{
-		perror("Error: main() failed: connect() failed");
+		perror("Error: connect() failed");
 
 		for (int i = 0; i < AO_NUM_SEND; i++)
 			if (AO_Send[i] != NULL)
@@ -136,13 +135,185 @@ int main(void) {
 			break;
 		}
 
-		else if (strcmp(input, "SEND"))
+		else if (strcmp(input, "SEND") == 0)
 		{
+			send(sockfd, input, (strlen(input) + 1), 0);
+			PAttachment attachments = NULL;
+			char subject[MAX_SUBJECT_LENGTH] = { 0 };
+			char path[ATTACH_FILENAME_MAX] = { 0 };
 
+			fprintf(stdout, "Enter subject: ");
+			fflush(stdout);
+			fgets(subject, sizeof(subject), stdin);
+
+			subject[strlen(subject) - 1] = '\0';
+
+			fprintf(stdout, "Enter number of attachments: ");
+			fflush(stdout);
+
+			int numAttachments = 0;
+
+			if (scanf("%d", &numAttachments) != 1)
+			{
+				fprintf(stderr, "Error: main() failed: scanf() failed.\n");
+				continue;
+			}
+
+			for (int i = 0; i < numAttachments; i++)
+			{
+				fprintf(stdout, "Enter attachment #%d path: ", i + 1);
+				fflush(stdout);
+				scanf("%s", path);
+
+				//path[strlen(path)] = '\0';
+
+				fprintf(stdout, "Reading attachment #%d...\n", i + 1);
+
+				fprintf(stdout, "Path: %s\n", path);
+
+				FILE *fp = fopen(path, "rb");
+
+				if (fp == NULL)
+				{
+					perror("fopen() failed");
+					continue;
+				}
+
+				fseek(fp, 0, SEEK_END);
+				uint32_t size = ftell(fp);
+				fseek(fp, 0, SEEK_SET);
+
+				char *data = (char *)malloc(size);
+
+				if (data == NULL)
+				{
+					fprintf(stderr, "Error: main() failed: malloc() failed.\n");
+					continue;
+				}
+
+				if (fread(data, sizeof(char), size, fp) != size)
+				{
+					fprintf(stderr, "Error: main() failed: fread() failed.\n");
+					continue;
+				}
+
+				fclose(fp);
+
+				addAttachmentToList(&attachments, path, data, size);
+
+				free(data);
+
+				fprintf(stdout, "Attachment #%d added.\n", i + 1);
+			}
+
+			char message[8192] = { 0 };
+
+			fprintf(stdout, "Enter message: ");
+			fflush(stdout);
+
+			scanf("%s", message);
+
+			message[strlen(message) - 1] = '\0';
+
+			struct sockaddr_in my_addr;
+			socklen_t socklen = sizeof(my_addr);
+
+			fprintf(stdout, "Preparing mail...\n");
+
+			getsockname(sockfd, (struct sockaddr *)&my_addr, &socklen);
+
+			char *mailToCompose = NULL;
+			uint32_t len = createMailDataPacket(inet_ntoa(my_addr.sin_addr), subject, message, attachments, &mailToCompose);
+
+			if (mailToCompose == NULL)
+			{
+				fprintf(stderr, "Error: main() failed: createMailDataPacket() failed.\n");
+				continue;
+			}
+
+			// Create task to encapsulate mail data packet via encoding, compression, and encryption.
+			// This will encapsulate only the fields after the total length field.
+			PTask task = createTask(mailToCompose + USERNAME_MAX_LENGTH + MAX_SUBJECT_LENGTH + sizeof(uint32_t), (len - USERNAME_MAX_LENGTH + MAX_SUBJECT_LENGTH + sizeof(uint32_t)));
+
+			if (task == NULL)
+			{
+				fprintf(stderr, "Error: main() failed: createTask() failed.\n");
+				continue;
+			}
+
+			// Start the chain of active objects
+			ENQUEUE(getQueue(AO_Send[0]), task);
+
+			// Wait for the task to be processed
+			PTask task2 = DEQUEUE(sendOutputQueue, PTask);
+
+			// Recompose mail data packet
+			memcpy(mailToCompose + USERNAME_MAX_LENGTH + MAX_SUBJECT_LENGTH + sizeof(uint32_t), task2->_data, task2->_data_size);
+
+			// Update the length field
+			((PMailRawPacketStripped)mailToCompose)->_mail_data_total_size = task2->_data_size;
+
+			// Update the length variable
+			len = task2->_data_size;
+
+			// Free the task, since we don't need it anymore.
+			destroyTask(task2);
+
+			// Send length to the server, so the server knows how much data to expect
+			send(sockfd, &len, sizeof(uint32_t), 0);
+
+			// Send mail
+			uint32_t totalSent = 0;
+
+			while (totalSent < len)
+			{
+				int sent = send(sockfd, mailToCompose + totalSent, len- totalSent, 0);
+
+				if (sent < 0)
+				{
+					perror("Error: main() failed: send() failed");
+					return 1;
+				}
+
+				totalSent += sent;
+			}
+
+			free(mailToCompose);
+
+			recv(sockfd, input, sizeof(input), 0);
+
+			if (input[0] != 'O' || input[1] != 'K')
+			{
+				fprintf(stderr, "Error: main() failed: server failed to send OK.\n");
+				continue;
+			}
+
+			memset(input, 0, sizeof(input));
+
+			fprintf(stdout, "Mail sent successfully.\n");
+
+			// Free the attachments
+			freeAttachmentList(&attachments);
 		}
 
-		else if (strcmp(input, "LIST"))
+		else if (strcmp(input, "LIST") == 0)
 		{
+			send(sockfd, input, (strlen(input) + 1), 0);
+
+			fprintf(stdout, "Waiting for list...\n");
+
+			char list_buffer[MAIL_MAX_BUFFER_SIZE] = { 0 };
+
+			// Receive list
+			recv(sockfd, list_buffer, sizeof(list_buffer), 0);
+
+			fprintf(stdout, "List received:\n");
+			fprintf(stdout, "%s\n", list_buffer);
+		}
+
+		else if (strcmp(input, "GET") == 0)
+		{
+			send(sockfd, input, (strlen(input) + 1), 0);
 
 		}
 

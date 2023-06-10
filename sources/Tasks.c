@@ -71,7 +71,7 @@ int AO_Task_Encode(void *data) {
 	PQueue q = getQueue(AO_Send[1]);
 	queueEnqueue(q, task);
 
-	return 0;
+	return 1;
 }
 
 int AO_Task_Compress(void *data) {
@@ -115,7 +115,7 @@ int AO_Task_Compress(void *data) {
 	PQueue q = getQueue(AO_Send[2]);
 	queueEnqueue(q, task);
 
-	return 0;
+	return 1;
 }
 
 int AO_Task_Encrypt(void *data) {
@@ -158,7 +158,7 @@ int AO_Task_Encrypt(void *data) {
 
 	queueEnqueue(sendOutputQueue, task);
 
-	return 0;
+	return 1;
 }
 
 int AO_Task_Decrypt(void *data) {
@@ -202,7 +202,7 @@ int AO_Task_Decrypt(void *data) {
 	PQueue q = getQueue(AO_Receive[1]);
 	queueEnqueue(q, task);
 
-	return 0;
+	return 1;
 }
 
 int AO_Task_Decompress(void *data) {
@@ -234,7 +234,7 @@ int AO_Task_Decompress(void *data) {
 	if (ret != 0)
 	{
 		fprintf(stderr, "Error: AO_Task_Decompress() failed: decompress_data() failed.\n");
-		return 1;
+		//return 1;
 	}
 
 	// Free the old data, as it's descarted, and set the new decompressed data.
@@ -246,7 +246,7 @@ int AO_Task_Decompress(void *data) {
 	PQueue q = getQueue(AO_Receive[2]);
 	queueEnqueue(q, task);
 
-	return 0;
+	return 1;
 }
 
 int AO_Task_Decode(void *data) {
@@ -289,5 +289,5 @@ int AO_Task_Decode(void *data) {
 
 	queueEnqueue(receiveOutputQueue, task);
 
-	return 0;
+	return 1;
 }

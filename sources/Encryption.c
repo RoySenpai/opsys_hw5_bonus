@@ -22,6 +22,9 @@ int AES_func_encrypt_data(uint8_t *plaintext, int plaintext_len, const uint8_t *
 	EVP_CIPHER_CTX *ctx;
 	int len, ciphertext_len;
 
+	if (DEBUG_MESSAGES)
+		fprintf(stdout, "AES_func_encrypt_data(): encrypting data of length %d with key %s and iv %s\n", plaintext_len, key, iv);
+
 	/* Create and initialise the context */
 	if (!(ctx = EVP_CIPHER_CTX_new()))
 		AES_func_handle_errors();
@@ -56,6 +59,9 @@ int AES_func_encrypt_data(uint8_t *plaintext, int plaintext_len, const uint8_t *
 	/* Clean up */
 	EVP_CIPHER_CTX_free(ctx);
 
+	if (DEBUG_MESSAGES)
+		fprintf(stdout, "AES_func_encrypt_data(): encrypted data to length %d\n", ciphertext_len);
+
 	return ciphertext_len;
 }
 
@@ -63,6 +69,9 @@ int AES_func_decrypt_data(uint8_t *ciphertext, int ciphertext_len, const uint8_t
 	EVP_CIPHER_CTX *ctx;
 
 	int len, plaintext_len;
+
+	if (DEBUG_MESSAGES)
+		fprintf(stdout, "AES_func_decrypt_data(): decrypting data of length %d with key %s and iv %s\n", ciphertext_len, key, iv);
 
 	/* Create and initialise the context */
 	if (!(ctx = EVP_CIPHER_CTX_new()))
@@ -98,10 +107,13 @@ int AES_func_decrypt_data(uint8_t *ciphertext, int ciphertext_len, const uint8_t
 	/* Clean up */
 	EVP_CIPHER_CTX_free(ctx);
 
+	if (DEBUG_MESSAGES)
+		fprintf(stdout, "AES_func_decrypt_data(): decrypted data to length %d\n", plaintext_len);
+
 	return plaintext_len;
 }
 
 void AES_func_handle_errors(void) {
 	ERR_print_errors_fp(stderr);
-	abort();
+	//abort();
 }

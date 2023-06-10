@@ -23,6 +23,7 @@
 /* Includes Section */
 /********************/
 
+#include "Settings.h"
 #include <bzlib.h>
 #include <bits/stdint-uintn.h>
 

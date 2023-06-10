@@ -49,16 +49,16 @@ typedef struct _Mail_Attachment_Node {
 	char _attach_name[ATTACH_FILENAME_MAX];
 
 	/*
-	 * @brief The data of the attachment.
-	 * @note The data is the actual file data, and we represent it as a stream of bytes.
-	*/
-	char *_attach_data;
-
-	/*
 	 * @brief The size of the attachment.
 	 * @note The size is used for memory allocation purposes.
 	*/
 	uint32_t _attach_data_size;
+
+	/*
+	 * @brief The data of the attachment.
+	 * @note The data is the actual file data, and we represent it as a stream of bytes.
+	*/
+	char *_attach_data;
 
 	/*
 	 * @brief The next attachment in the list.
@@ -68,108 +68,81 @@ typedef struct _Mail_Attachment_Node {
 } Attachment, *PAttachment;
 
 /*
- * @brief A struct representing a mail package - a mail package is a mail to be sent to the server or received from the server.
-
- * @param body The body of the mail.
- * @param body_size The size of the body of the mail.
- * @param attachments The list of attachments of the mail.
- * @note The list is a linked list of attachments, and it can be NULL if there are no attachments.
- * @note Both the subject and the body are strings of characters, and they can be empty.
- * @note This struct is used to store the entire mail data itself,
- * 			and this is the data that is sent to the server and vice versa.
- * @note When the mail is sent to the server it first encodes, compresses and encrypts the whole struct and it's data,
- * 				and then it sends the encoded, compressed and encrypted data to the server.
- * @note When the mail is received from the server it first decrypts, decompresses and decodes the data,
- * 				and then it stores the decoded, decompressed and decrypted data in this struct.
+ * @brief A struct representing a stripped raw mail package, which is a mail package with the header fields only.
+ * @param _mail_from The sender of the mail (Fixed size of USERNAME_MAX_LENGTH).
+ * @param _mail_subject The subject of the mail (Fixed size of MAX_SUBJECT_LENGTH).
+ * @param _mail_total_size The total size of the mail, including all the fields and the data.
+ * @param _mail_data_body_size The size of the body of the mail.
+ * @param _mail_data_attachments_num The number of attachments of the mail.
+ * @warning Anything beyond the _mail_data_total_size field should be encoded, compressed and encrypted before sending it to the server.
+ * @note The _mail_data_total_size field is calculated by this formula:
+ * 			_mail_data_total_size = sizeof(struct _Mail_Raw_Packet_Stripped) + _mail_data_body_size + sum of the sizes of the attachments (if there are any).
+ * @note The body is a string of characters, and it's size is controlled by the _mail_data_body_size field.
+ * @note The attachments are a list of attachments, and the number of attachments is controlled by the _mail_data_attachments_num field.
+ * @note Do not use this struct directly, only use it when you need to send the mail to the server or receive the mail from the server.
 */
-typedef struct _Mail_Data_Package_Data_Node {
+typedef struct _Mail_Raw_Packet_Stripped {
 	/*
-	 * @brief The body of the mail.
-	 * @note The body is a string of characters, and it's size is controlled by the body_size field.
-	*/
-	char *_mail_data_body;
-
-	/*
-	 * @brief The size of the body of the mail.
-	 * @note The size is used for memory allocation purposes.
-	*/
-	uint32_t _mail_data_body_size;
-
-	/*
-	 * @brief The list of attachments of the mail.
-	 * @note The list is a linked list of attachments.
-	 * @note The head is the first attachment in the list,
-	 * 			and it can be NULL if there are no attachments.
-	*/
-	PAttachment _mail_data_attachments;
-} MailData, *PMailData;
-
-/*
- * @brief A struct representing a mail package node - a mail package node is a mail package with a sender.
- * @param _from The sender of the mail.
- * @param subject The subject of the mail.
- * @param _mail_data The mail itself.
- * @param _mail_next The next mail in the list.
- * @note The next mail is used to create a linked list of mails, and is used by the server to store
- * 			the mails and by the client to store retrieved mails.
- * @note In the server, the _mail_data field is encrypted, compressed and encoded,
- * 			and can be decrypted, decompressed and decoded only by the client.
-*/
-typedef struct _Mail_Data_Package_Node {
-
-	/*
-	 * @brief The sender of the mail.
-	 * @note The sender is a string of characters, and it's size is controlled by the USERNAME_MAX_LENGTH macro.
+	 * @brief The sender of the mail (Fixed size of USERNAME_MAX_LENGTH).
+	 * @note The sender is used to identify the sender of the mail.
 	*/
 	char _mail_from[USERNAME_MAX_LENGTH];
 
 	/*
-	 * @brief The subject of the mail.
-	 * @note The subject is a string of characters, and can be empty.
-	 * @note The size of the subject is controlled by the MAX_SUBJECT_LENGTH macro.
+	 * @brief The subject of the mail (Fixed size of MAX_SUBJECT_LENGTH).
+	 * @note The subject is used to identify the subject of the mail.
+	 * @note The subject can be empty.
 	*/
 	char _mail_subject[MAX_SUBJECT_LENGTH];
 
 	/*
-	 * @brief The mail itself.
-	 * @note The mail is a mail package, and it is represented by the MailData struct.
+	 * @brief The total size of the mail, including all the fields and the data.
+	 * @note The _mail_data_total_size field is calculated by this formula:
+	 * 			_mail_data_total_size = sizeof(struct _Mail_Raw_Packet_Stripped) + _mail_data_body_size + sum of the sizes of the attachments (if there are any).
 	*/
-	PMailData _mail_data;
+	uint32_t _mail_data_total_size;
 
 	/*
-	 * @brief The next mail in the list.
-	 * @note The next mail is used to create a linked list of mails.
+	 * @brief The size of the body of the mail.
+	 * @note The body is a string of characters, and it's size is controlled by the _mail_data_body_size field.
+	 * @note The body can be empty.
 	*/
-	struct _Mail_Data_Package_Node *_mail_next;
-} Mail, *PMail;
+	uint32_t _mail_data_body_size;
+
+	/*
+	 * @brief The number of attachments of the mail.
+	 * @note The attachments are a list of attachments, and the number of attachments is controlled by the _mail_data_attachments_num field.
+	 * @note The number of attachments can be zero.
+	*/
+	uint32_t _mail_data_attachments_num;
+} MailRawPacketStripped, *PMailRawPacketStripped;
+
+
+/*
+ * @brief A struct representing a mail attachment, in raw form.
+ * @param _mail_attachment_name The name of the attachment (Fixed size of ATTACH_FILENAME_MAX).
+ * @param _mail_attachment_size The size of the attachment.
+ * @note The attachment is a file, and it's size is controlled by the _mail_attachment_size field.
+ * @note Do not use this struct directly, only use it when you need to send the mail to the server or receive the mail from the server.
+*/
+typedef struct _Mail_Attachment_Data {
+	/*
+	 * @brief The name of the attachment (Fixed size of ATTACH_FILENAME_MAX).
+	 * @note The name is used to identify the attachment.
+	*/
+	char _mail_attachment_name[ATTACH_FILENAME_MAX];
+
+	/*
+	 * @brief The size of the attachment.
+	 * @note The attachment is a file, and it's size is controlled by the _mail_attachment_size field.
+	*/
+	uint32_t _mail_attachment_size;
+} MailAttachmentData, *PMailAttachmentData;
 
 
 /********************************/
 /* Function Declaratios Section */
 /********************************/
-
-/*
- * @brief Creates a new mail package.
- * @param body The body of the mail.
- * @param body_size The size of the body of the mail.
- * @param attachments The list of attachments of the mail.
- * @return A pointer to the new mail package, or NULL on failure.
- * @note The list is a linked list of attachments, and it can be NULL if there are no attachments.
-*/
-PMailData createMail(const char *body, const uint32_t body_size, PAttachment attachments);
-
-/*
- * @brief Adds a mail to the mail list (a linked list of mails).
- * @param head The head of the mail list.
- * @param from The sender of the mail.
- * @param subject The subject of the mail.
- * @param body The body of the mail.
- * @param body_size The size of the body of the mail.
- * @param attachments The list of attachments of the mail.
- * @return 0 on success, 1 on failure.
- * @note The list is a linked list of mails, and it can be NULL if there are no mails.
-*/
-int addMailToList(PMail *head, const char *from, const char *subject, const char *body, const uint32_t body_size, PAttachment attachments);
 
 /*
  * @brief Adds an attachment to the attachment list (a linked list of attachments).
@@ -180,14 +153,7 @@ int addMailToList(PMail *head, const char *from, const char *subject, const char
  * @return 0 on success, 1 on failure.
  * @note The list is a linked list of attachments, and it can be NULL if there are no attachments.
 */
-int addAttachmentToList(PAttachment *head, const char *name, const char *buffer, const uint32_t size);
-
-/*
- * @brief Frees the memory allocated for the mail list (a linked list of mails).
- * @param head The head of the mail list.
- * @note This function frees the memory allocated for the mail list, including the memory allocated for the mails themselves.
-*/
-void freeMailList(PMail *head);
+int addAttachmentToList(PAttachment *head, const char *name, void *buffer, const uint32_t size);
 
 /*
  * @brief Frees the memory allocated for the attachment list (a linked list of attachments).
@@ -196,5 +162,27 @@ void freeMailList(PMail *head);
 */
 void freeAttachmentList(PAttachment *head);
 
+/*
+ * @brief Creates a raw mail package from given mail data.
+ * @param from The sender of the mail.
+ * @param subject The subject of the mail.
+ * @param body The body of the mail.
+ * @param attachments A linked list of attachments of the mail.
+ * @param output A pointer to the output buffer.
+ * @return Size of the output buffer on success, -1 on failure.
+*/
+uint32_t createMailDataPacket(const char *from, const char *subject, const char *body, PAttachment attachments, char **output);
+
+#if DEBUG_MESSAGES == 1
+	/*
+	 * @brief Prints a hex dump of a given buffer.
+	 * @param desc The description of the buffer.
+	 * @param addr The address of the buffer.
+	 * @param len The length of the buffer.
+	 * @param perLine The number of bytes to print per line.
+	 * @return 0 on success, 1 on failure.
+	*/
+	int hexDump(const char *desc, const void *addr, const int len, int perLine);
+#endif
 
 #endif /* _MAIL_H */

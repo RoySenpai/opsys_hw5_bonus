@@ -65,11 +65,14 @@ int UUEncode(const char *data, const uint32_t data_size, char **encoded_data, ui
 		return 1;
 	}
 
+	if (DEBUG_MESSAGES)
+		fprintf(stdout, "UUEncode(): Encoding data of size %d.\n", data_size);
+
 	int ch = 0, n = 0, idx = 0;
 	int bytes_to_encode = data_size;
 	int encoded_bytes = 0;
 	int encoded_data_size_temp = 0;
-	register char *p;
+	register char *p = NULL;
 	char buf[80], outbuf[250];
 
 	// Calculate the size of the encoded data
@@ -126,6 +129,9 @@ int UUEncode(const char *data, const uint32_t data_size, char **encoded_data, ui
 
 	*encoded_data_size = (uint32_t)encoded_bytes;
 
+	if (DEBUG_MESSAGES)
+		fprintf(stdout, "UUEncode(): Encoded data size is %d.\n", *encoded_data_size);
+
 	return 0;
 }
 
@@ -142,6 +148,9 @@ int UUDecode(const char *encoded_data, const uint32_t encoded_data_size, char **
 		fprintf(stderr, "UUDecode(): Invalid data size.\n");
 		return 1;
 	}
+
+	if (DEBUG_MESSAGES)
+		fprintf(stdout, "UUDecode(): Decoding data of size %d.\n", encoded_data_size);
 
 	int ch = 0, n = 0, idx = 0;
 	int bytes_to_decode = encoded_data_size;
@@ -198,6 +207,9 @@ int UUDecode(const char *encoded_data, const uint32_t encoded_data_size, char **
 	}
 
 	*data_size = (uint32_t)decoded_bytes;
+
+	if (DEBUG_MESSAGES)
+		fprintf(stdout, "UUDecode(): Decoded data size is %d.\n", *data_size);
 
 	return 0;
 }
