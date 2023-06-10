@@ -17,103 +17,116 @@
  */
 
 #include "../include/Encryption.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
 
 int AES_func_encrypt_data(uint8_t *plaintext, int plaintext_len, const uint8_t *key, const uint8_t *iv, uint8_t *ciphertext) {
+	// Initialize the OpenSSL library
 	EVP_CIPHER_CTX *ctx;
-	int len, ciphertext_len;
 
 	if (DEBUG_MESSAGES)
 		fprintf(stdout, "AES_func_encrypt_data(): encrypting data of length %d with key %s and iv %s\n", plaintext_len, key, iv);
 
-	/* Create and initialise the context */
 	if (!(ctx = EVP_CIPHER_CTX_new()))
-		AES_func_handle_errors();
+	{
+		fprintf(stderr, "Error: AES_func_encrypt_data(): OpenSSL initialization failed.\n");
+		ERR_print_errors_fp(stderr);
+		return 0;
+	}
 
-	/*
-	 * Initialise the encryption operation. IMPORTANT - ensure you use a key
-	 * and IV size appropriate for your cipher
-	 * The IV size for *most* modes is the same as the block size. For AES this
-	 * is 128 bits
-	*/
+	// Set up the encryption parameters
 	if (EVP_EncryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv) != 1)
-		AES_func_handle_errors();
+	{
+		fprintf(stderr, "Error: AES_func_encrypt_data(): EVP_EncryptInit_ex() failed.\n");
+		ERR_print_errors_fp(stderr);
+		EVP_CIPHER_CTX_free(ctx);
+		return 0;
+	}
 
-	/*
-	 * Provide the message to be encrypted, and obtain the encrypted output.
-	 * EVP_EncryptUpdate can be called multiple times if necessary
-	*/
+	// Perform the encryption
+	int len;
+
 	if (EVP_EncryptUpdate(ctx, ciphertext, &len, plaintext, plaintext_len) != 1)
-		AES_func_handle_errors();
+	{
+		fprintf(stderr, "Error: AES_func_encrypt_data(): EVP_EncryptUpdate() failed.\n");
+		ERR_print_errors_fp(stderr);
+		EVP_CIPHER_CTX_free(ctx);
+		return 0;
+	}
 
-	ciphertext_len = len;
+	int ciphertext_len = len;
 
-	/*
-	 * Finalise the encryption. Further plaintext bytes may be written at
-	 * this stage.
-	*/
+	// Finalize the encryption
 	if (EVP_EncryptFinal_ex(ctx, ciphertext + len, &len) != 1)
-		AES_func_handle_errors();
-	
-	ciphertext += len;
+	{
+		fprintf(stderr, "Error: AES_func_encrypt_data(): EVP_EncryptFinal_ex() failed.\n");
+		ERR_print_errors_fp(stderr);
+		EVP_CIPHER_CTX_free(ctx);
+		return 0;
+	}
 
-	/* Clean up */
+	ciphertext_len += len;
+
+	// Clean up the OpenSSL context
 	EVP_CIPHER_CTX_free(ctx);
-
-	if (DEBUG_MESSAGES)
-		fprintf(stdout, "AES_func_encrypt_data(): encrypted data to length %d\n", ciphertext_len);
 
 	return ciphertext_len;
 }
 
 int AES_func_decrypt_data(uint8_t *ciphertext, int ciphertext_len, const uint8_t *key, const uint8_t *iv, uint8_t *plaintext) {
+	// Initialize the OpenSSL library
 	EVP_CIPHER_CTX *ctx;
-
-	int len, plaintext_len;
 
 	if (DEBUG_MESSAGES)
 		fprintf(stdout, "AES_func_decrypt_data(): decrypting data of length %d with key %s and iv %s\n", ciphertext_len, key, iv);
-
-	/* Create and initialise the context */
+	
 	if (!(ctx = EVP_CIPHER_CTX_new()))
-		AES_func_handle_errors();
+	{
+		fprintf(stderr, "Error: AES_func_decrypt_data() failed: EVP_CIPHER_CTX_new() failed.\n");
+		ERR_print_errors_fp(stderr);
+		return 0;
+	}
 
-	/*
-	 * Initialise the decryption operation. IMPORTANT - ensure you use a key
-	 * and IV size appropriate for your cipher
-	 * The IV size for *most* modes is the same as the block size. For AES this
-	 * is 128 bits
-	 */
+	// Set up the decryption parameters
 	if (EVP_DecryptInit_ex(ctx, EVP_aes_256_cbc(), NULL, key, iv) != 1)
-		AES_func_handle_errors();
+	{
+		fprintf(stderr, "Error: AES_func_decrypt_data() failed: EVP_DecryptInit_ex() failed.\n");
+		ERR_print_errors_fp(stderr);
+		EVP_CIPHER_CTX_free(ctx);
+		return 0;
+	}
 
-	/*
-	 * Provide the message to be decrypted, and obtain the plaintext output.
-	 * EVP_DecryptUpdate can be called multiple times if necessary.
-	 */
+	// Perform the decryption
+	int len;
+
 	if (EVP_DecryptUpdate(ctx, plaintext, &len, ciphertext, ciphertext_len) != 1)
-		AES_func_handle_errors();
+	{
+		fprintf(stderr, "Error: AES_func_decrypt_data() failed: EVP_DecryptUpdate() failed.\n");
+		ERR_print_errors_fp(stderr);
+		EVP_CIPHER_CTX_free(ctx);
+		return 0;
+	}
 
-	plaintext_len = len;
+	int plaintext_len = len;
 
-	/*
-	 * Finalise the decryption. Further plaintext bytes may be written at
-	 * this stage.
-	 */
+	// Finalize the decryption
 	if (EVP_DecryptFinal_ex(ctx, plaintext + len, &len) != 1)
-		AES_func_handle_errors();
+	{
+		fprintf(stderr, "Error: AES_func_decrypt_data() failed: EVP_DecryptFinal_ex() failed.\n");
+		ERR_print_errors_fp(stderr);
+		EVP_CIPHER_CTX_free(ctx);
+		return 0;
+	}
 
 	plaintext_len += len;
 
-	/* Clean up */
+	// Clean up the OpenSSL context
 	EVP_CIPHER_CTX_free(ctx);
 
 	if (DEBUG_MESSAGES)
 		fprintf(stdout, "AES_func_decrypt_data(): decrypted data to length %d\n", plaintext_len);
 
 	return plaintext_len;
-}
-
-void AES_func_handle_errors(void) {
-	ERR_print_errors_fp(stderr);
-	//abort();
 }

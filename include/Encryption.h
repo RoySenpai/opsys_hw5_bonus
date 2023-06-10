@@ -27,7 +27,6 @@
 #include <openssl/evp.h>
 #include <openssl/aes.h>
 #include <openssl/err.h>
-#include <string.h>
 #include <bits/stdint-uintn.h>
 
 
@@ -79,11 +78,5 @@ int AES_func_encrypt_data(uint8_t *plaintext, int plaintext_len, const uint8_t *
  * @note The key and the initialization vector are strings of characters.
 */
 int AES_func_decrypt_data(uint8_t *ciphertext, int ciphertext_len, const uint8_t *key, const uint8_t *iv, uint8_t *data);
-
-/*
- * @brief A function that handles errors in OpenSSL's AES algorithm.
- * @note The function prints the error to stderr and aborts the program (core dump).
-*/
-void AES_func_handle_errors(void);
 
 #endif /* _ENCRYPTION_MAIL_H */

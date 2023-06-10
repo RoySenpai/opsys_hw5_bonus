@@ -42,14 +42,14 @@
  * @note 1 for printing debug messages, 0 otherwise.
  * @note The default value is 0.
 */
-#define DEBUG_MESSAGES			1
+#define DEBUG_MESSAGES			0
 
 /*
  * @brief Mail server IP address, that the client will connect to.
  * @note The default value is 127.0.0.1 (localhost).
  * @note The value must be a valid IPv4 address.
 */
-#define MAIL_SERVER_IP 		"127.0.0.1"
+#define MAIL_SERVER_IP 			"127.0.0.1"
 
 /*
  * @brief Mail server port, that the server will listen to.

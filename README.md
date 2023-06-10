@@ -12,13 +12,31 @@ attachments to the messages. Each message is encrypted, compressed, and encoded 
 saves the messages in the encrypted format. The client can download the messages from the server and decrypt, decompress, and decode,
 and all the attachments will be saved in the client's machine in a unique folder.
 
-The mail server and client are using TCP/IP protocol to communicate with each other.
+The mail server and client are using TCP/IP protocol to communicate with each other, and the client is using the active object
+design pattern to encode/decode, compress/decompress, and encrypt/decrypt the messages, via a pipeline of tasks that are executed
+by the active objects.
 
 This bonus assignment is composed from the following components:
 * **Mail Server** – A mail server that is using the vSMTP protocol to communicate with the client.
 * **Mail Client** – A mail client that is using the vSMTP protocol to communicate with the server. The client can send messages
 to the server, and download messages from the server. The client uses the active object to encode/decode, compress/decompress,
 and encrypt/decrypt the messages. The client saves the messages in a unique folder in the client's machine.
+
+There are in total 6 active objects in the client, each one is responsible for a different task:
+* **Encode Active Object** – Encodes messages using UUEncode.
+* **Decode Active Object** – Decodes messages using UUEncode.
+* **Compress Active Object** – Compresses messages using Bzip2 Compression.
+* **Decompress Active Object** – Decompresses messages using Bzip2 Compression.
+* **Encrypt Active Object** – Encrypts messages using OpenSSL crypto library and AES-256-CBC algorithm.
+* **Decrypt Active Object** – Decrypts messages using OpenSSL crypto library and AES-256-CBC algorithm.
+
+### Usage
+The mail server is using the vSMTP protocol to communicate with the client. The server is listening on port 9999. The server
+supports the following commands:
+* **LIST** – Lists all the messages that are stored in the server.
+* **SEND** – Sends a message to the server. The message is encrypted, compressed, and encoded before it is saved in the server.
+* **GET** – Downloads a message from the server. The user inputs the message's ID, and the server sends the message to the client.
+the client decrypts, decompresses, and decodes the message, and saves it in a unique folder in the client's machine.
 
 ### Deep Dive
 This assignment is composed from the following APIs:
@@ -159,9 +177,9 @@ The default value is 0.
 #### Encryption API
 The Encryption API supports the following operations:
 * `int AES_func_encrypt_data(uint8_t *plaintext, int plaintext_len, const uint8_t *key, const uint8_t *iv, uint8_t *ciphertext)` – Encrypts the data using the AES-256-CBC algorithm.
-Returns 1 if the operation was successful, or 0 if an error occurred.
+Returns length of the ciphertext if the operation was successful, or 0 if an error occurred.
 * `int AES_func_decrypt_data(uint8_t *ciphertext, int ciphertext_len, const uint8_t *key, const uint8_t *iv, uint8_t *data)` – Decrypts the data using the AES-256-CBC algorithm.
-Returns 1 if the operation was successful, or 0 if an error occurred.
+Returns length of the data if the operation was successful, or 0 if an error occurred.
 
 The Encryption API uses the OpenSSL crypto library, which is an open-source library for encryption and decryption. It is available at: https://www.openssl.org/
 
@@ -194,17 +212,24 @@ _mail_data_body_size = strlen(_mail_body) + 1.
 The attachment header is built from the following fields:
 * `char _mail_attachment_name[ATTACH_FILENAME_MAX]` (ATTACH_FILENAME_MAX bytes) – The name of the attachment (Fixed size of ATTACH_FILENAME_MAX). The name is used to identify the attachment.
 * `uint32_t _mail_attachment_size` (4 bytes) – The size of the attachment. The attachment is a file, and it's size is controlled by the _mail_attachment_size field.
-* `<attachment data>` (0-? bytes) – The data of the attachment. The data is a file, and it's size is controlled by the _mail_attachment_size field. Can be empty,
-but it's ilogical to have an attachment with no data.
+* `<attachment data>` (0-? bytes) – The data of the attachment. The data is a file, and it's size is controlled by the _mail_attachment_size field. Can be empty, but it's ilogical to have an attachment with no data.
 
-_**NOTICE**_: The mail server and client are using the vSMTP protocol to communicate with each other. The protocol is based on the SMTP protocol,
+
+#### Extra Information
+The assignment has some extra information that is important to know:
+* The mail server and client are using the vSMTP protocol to communicate with each other. The protocol is based on the SMTP protocol,
 but it is a very simple version of it. The protocol is not a standard protocol, and it is not recommended to use it in real life.
-
-_**NOTICE**_: The implementation of the mail server and client isn't complete, because of time limitations. The purpose of this submission
+* The implementation of the mail server and client isn't complete, because of time limitations. The purpose of this submission
 is to show the ability to understand and use OpenSSL crypto library, Bzip2 Compression library, and UUEncode algorithm.
+* Any other information about the implementation can be found in the source code.
+* The whole assignment was tested on Ubuntu 22.04 LTS, and it was compiled using the GNU C Compiler.
+* The assigment is released under the GNU General Public License (GPL) v3.0 license, which is attached to this repository (see `LICENSE` file).
 
-_**TODO**_: Complete the implementation of the mail server and client, such that the chain of encryption, compression, and encoding will function
-properly, and vice versa.
+I worked too many hours on this assignment, probably more than I should have, but I wanted to make it as good as I can. I hope that you will appreciate my work, even if I didn't finish the assignment completely.
+
+P.S: The bonus points for this assignment are very important to me, because I want to get a good grade in this course. I hope that you will give me the bonus points, because I worked very hard on this assignment, and I think that I deserve them, even tho I think it worth more than 5 points. Thank you for your time, and thank you for thanking me thanking you (•̀ᴗ•́).
+
+In case you have any questions, feel free to contact me at: `me at hiyorix dot com`.
 
 
 ## Requirements

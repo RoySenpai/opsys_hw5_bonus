@@ -24,6 +24,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -120,12 +121,16 @@ int main(void) {
 	{
 		char input[64] = { 0 };
 
-		fprintf(stdout, "Enter a command: ");
-		fflush(stdout);
+		fprintf(stdout, "Enter a command:\n"
+						"\tSEND - Send a new mail\n"
+						"\tRECEIVE - Receive a new mail\n"
+						"\tGET - Get a mail from the server\n"
+						"\texit - Exit the program\n");
 		fgets(input, sizeof(input), stdin);
 
 		input[strlen(input) - 1] = '\0';
 
+		// Ignore empty input
 		if (strlen(input) == 0)
 			continue;
 
@@ -164,8 +169,6 @@ int main(void) {
 				fprintf(stdout, "Enter attachment #%d path: ", i + 1);
 				fflush(stdout);
 				scanf("%s", path);
-
-				//path[strlen(path)] = '\0';
 
 				fprintf(stdout, "Reading attachment #%d...\n", i + 1);
 
@@ -315,6 +318,138 @@ int main(void) {
 		{
 			send(sockfd, input, (strlen(input) + 1), 0);
 
+			fprintf(stdout, "Enter mail ID: ");
+			fflush(stdout);
+
+			uint32_t mail_id = 0;
+			scanf("%u", &mail_id);
+
+			send(sockfd, &mail_id, sizeof(uint32_t), 0);
+
+			fprintf(stdout, "Waiting for mail...\n");
+
+			uint32_t len = 0;
+
+			// Receive length
+			recv(sockfd, &len, sizeof(uint32_t), 0);
+
+			char *mail = (char *)malloc(len);
+
+			if (mail == NULL)
+			{
+				fprintf(stderr, "Error: main() failed: malloc() failed.\n");
+				continue;
+			}
+
+			uint32_t totalReceived = 0;
+
+			while (totalReceived < len)
+			{
+				int received = recv(sockfd, mail + totalReceived, len - totalReceived, 0);
+
+				if (received < 0)
+				{
+					perror("Error: main() failed: recv() failed");
+					return 1;
+				}
+
+				fprintf(stdout, "Received %d/%u bytes.\n", received, len);
+
+				totalReceived += received;
+			}
+
+			fprintf(stdout, "Mail received:\n");
+
+			// Create task to encapsulate mail data packet via decryption, decompression, and decoding.
+			// This will encapsulate only the fields after the total length field.
+			PTask task = createTask(mail + USERNAME_MAX_LENGTH + MAX_SUBJECT_LENGTH + sizeof(uint32_t), (len - USERNAME_MAX_LENGTH + MAX_SUBJECT_LENGTH + sizeof(uint32_t)));
+
+			if (task == NULL)
+			{
+				fprintf(stderr, "Error: main() failed: createTask() failed.\n");
+				continue;
+			}
+
+			// Start the chain of active objects
+			ENQUEUE(getQueue(AO_Receive[0]), task);
+
+			// Wait for the task to be processed
+			PTask task2 = DEQUEUE(receiveOutputQueue, PTask);
+
+			// Recompose mail data packet
+			memcpy(mail + USERNAME_MAX_LENGTH + MAX_SUBJECT_LENGTH + sizeof(uint32_t), task2->_data, task2->_data_size);
+
+			// Update the length field
+			((PMailRawPacketStripped)mail)->_mail_data_total_size = len;
+
+			// Free the task, since we don't need it anymore.
+			destroyTask(task2);
+
+			// Save the mail and attachments to disk
+			char maildir[ATTACH_FILENAME_MAX] = { 0 };
+			sprintf(maildir, "mail/%d", mail_id);
+
+			mkdir(maildir, 0777);
+
+			sprintf(maildir, "mail/%d/mail.txt", mail_id);
+
+			FILE *fp = fopen(maildir, "w");
+
+			if (fp == NULL)
+			{
+				fprintf(stderr, "Error: main() failed: fopen() failed.\n");
+				continue;
+			}
+
+			PMailRawPacketStripped mailPacket = (PMailRawPacketStripped)mail;
+			uint32_t offset = (USERNAME_MAX_LENGTH + MAX_SUBJECT_LENGTH + (3 * sizeof(uint32_t)));
+			char *mailBody = (char *)mailPacket + offset;
+
+			fprintf(fp, "From: %s\n", mailPacket->_mail_from);
+			fprintf(fp, "Subject: %s\n", mailPacket->_mail_subject);
+			fprintf(fp, "Size: %u\n", mailPacket->_mail_data_total_size);
+			fprintf(fp, "Attachments: %u\n", mailPacket->_mail_data_attachments_num);
+			fprintf(fp, "Body: %s\n", mailBody);
+
+			fprintf(stdout, "From: %s\n", mailPacket->_mail_from);
+			fprintf(stdout, "Subject: %s\n", mailPacket->_mail_subject);
+			fprintf(stdout, "Size: %u\n", mailPacket->_mail_data_total_size);
+			fprintf(stdout, "Attachments: %u\n", mailPacket->_mail_data_attachments_num);
+			fprintf(stdout, "Body: %s\n", mailBody);
+
+			fclose(fp);
+
+			offset += mailPacket->_mail_data_body_size;
+
+			for (uint32_t i = 0; i < mailPacket->_mail_data_attachments_num; i++)
+			{
+				char filename[ATTACH_FILENAME_MAX] = { 0 };
+				char *attachName = (char *)mailPacket + offset;
+				sprintf(filename, "mail/%d/%s", mail_id, attachName);
+
+				fp = fopen(filename, "w");
+
+				if (fp == NULL)
+				{
+					fprintf(stderr, "Error: main() failed: fopen() failed.\n");
+					continue;
+				}
+
+				offset += ATTACH_FILENAME_MAX;
+
+				uint32_t size = *((uint32_t *)(mailPacket + offset));
+				offset += sizeof(uint32_t);
+
+				fwrite(mailPacket + offset, size, 1, fp);
+
+				fclose(fp);
+
+				offset += size;
+			}
+
+			free(mail);
+
+			fprintf(stdout, "Mail saved successfully.\n");
 		}
 
 		else

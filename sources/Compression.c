@@ -14,90 +14,66 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 #include "../include/Compression.h"
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
 
-int Bzip2_Compress(void* data, uint32_t size, void** compressed_data, uint32_t* compressed_size) {
-	bz_stream* strm = (bz_stream*)malloc(sizeof(bz_stream));
-
-	if (strm == NULL)
-	{
-		perror("Error: Bzip2_Compress() failed: malloc() failed");
-		return 1;
-	}
-
-	// Use the standard C library memory allocation routines, as we don't actually need any special allocation routines.
-	strm->bzalloc = NULL;
-	strm->bzfree = NULL;
-	strm->opaque = NULL;
-
-	// Initialize the compression library.
-	int ret = 0;
-	ret = BZ2_bzCompressInit(strm, 9, 0, 0);
-
-	// Check the return value of the initialization function.
-	if (ret != BZ_OK)
-	{
-		Bzip2_print_error("Bzip2_Compress()", ret);
-		free(strm);
-		return 1;
-	}
+int Bzip2_Compress(void *data, uint32_t size, void **compressed_data, uint32_t *compressed_size) {
+	// Initialize the Bzip2 stream
+	bz_stream bzs;
+	bzs.bzalloc = NULL;
+	bzs.bzfree = NULL;
+	bzs.opaque = NULL;
 
 	if (DEBUG_MESSAGES)
 		fprintf(stdout, "Bzip2_Compress(): Compressing %d bytes\n", size);
 
-	// Compress the data.
-	strm->next_in = (char*)data;
-	strm->avail_in = size;
+	int ret = BZ2_bzCompressInit(&bzs, BZIP2_BLOCK_SIZE, BZIP2_VERBOSITY, BZIP2_WORK_FACTOR);
 
-	// Allocate memory for the compressed data.
-	*compressed_data = malloc(size);
+	if (ret != BZ_OK)
+	{
+		Bzip2_print_error("BZ2_bzCompressInit()", ret);
+		return 1;
+	}
 
-	// Check the return value of the memory allocation.
+	// Calculate the size of the compressed data buffer
+	uint32_t destSize = size + (size * 0.01) + 600; // BZ2_bzBuffToBuffCompress() recommends adding 1% + 600 bytes
+	*compressed_data = malloc(destSize);
 	if (*compressed_data == NULL)
 	{
 		perror("Error: Bzip2_Compress() failed: malloc() failed");
-		BZ2_bzCompressEnd(strm);
-		free(strm);
 		return 1;
 	}
 
-	// Set the output buffer.
-	strm->next_out = (char*)*compressed_data;
-	strm->avail_out = size;
+	// Perform the compression
+	bzs.next_in = (char *)data;
+	bzs.avail_in = size;
+	bzs.next_out = *compressed_data;
+	bzs.avail_out = destSize;
 
-	// Compress the data.
-	ret = BZ2_bzCompress(strm, BZ_FINISH);
-
-	// Check the return value of the compression function.
+	ret = BZ2_bzCompress(&bzs, BZ_FINISH);
 	if (ret != BZ_STREAM_END)
 	{
-		Bzip2_print_error("Bzip2_Compress()", ret);
-		BZ2_bzCompressEnd(strm);
-		free(strm);
+		Bzip2_print_error("BZ2_bzCompress()", ret);
+		BZ2_bzCompressEnd(&bzs);
 		free(*compressed_data);
 		return 1;
 	}
 
-	// Finish the compression process by releasing the memory used by the compression library.
-	ret = BZ2_bzCompressEnd(strm);
+	// Set the compressed size
+	*compressed_size = destSize - bzs.avail_out;
 
-	// Check the return value of the finish function.
+	// Clean up the Bzip2 stream
+	ret = BZ2_bzCompressEnd(&bzs);
 	if (ret != BZ_OK)
 	{
-		Bzip2_print_error("Bzip2_Compress()", ret);
-		free(strm);
+		Bzip2_print_error("BZ2_bzCompressEnd()", ret);
 		free(*compressed_data);
 		return 1;
 	}
-
-	// Set the size of the compressed data, free the memory of the stream and return.
-	*compressed_size = strm->total_out_lo32;
-	free(strm);
 
 	if (DEBUG_MESSAGES)
 		fprintf(stdout, "Bzip2_Compress(): Compressed %d bytes to %d bytes\n", size, *compressed_size);
@@ -105,109 +81,61 @@ int Bzip2_Compress(void* data, uint32_t size, void** compressed_data, uint32_t* 
 	return 0;
 }
 
-int Bzip2_Decompress(void* compressed_data, uint32_t compressed_size, void** data, uint32_t* size) {
-	bz_stream* strm = (bz_stream*)malloc(sizeof(bz_stream));
-
-	if (strm == NULL)
-	{
-		perror("Error: Bzip2_Decompress() failed: malloc() failed");
-		return 1;
-	}
-
-	// Use the standard C library memory allocation routines, as we don't actually need any special allocation routines.
-	strm->bzalloc = NULL;
-	strm->bzfree = NULL;
-	strm->opaque = NULL;
-
-	// Initialize the decompression library.
-	int ret = BZ2_bzDecompressInit(strm, BZIP2_VERBOSITY, BZIP2_DECOMPRESS_SMALL);
-
-	// Check the return value of the initialization function.
-	if (ret != BZ_OK)
-	{
-		Bzip2_print_error("Bzip2_Decompress()", ret);
-		free(strm);
-		return 1;
-	}
+int Bzip2_Decompress(void *compressed_data, uint32_t compressed_size, void **data, uint32_t *size) {
+	// Initialize the Bzip2 stream
+	bz_stream bzs;
+	bzs.bzalloc = NULL;
+	bzs.bzfree = NULL;
+	bzs.opaque = NULL;
 
 	if (DEBUG_MESSAGES)
 		fprintf(stdout, "Bzip2_Decompress(): Decompressing %d bytes\n", compressed_size);
 
-	// Decompress the data.
-	strm->next_in = (char*)compressed_data;
-	strm->avail_in = compressed_size;
+	int ret = BZ2_bzDecompressInit(&bzs, BZIP2_VERBOSITY, BZIP2_DECOMPRESS_SMALL);
 
-	// Allocate memory for the decompressed data, temporarily allocate 10 times the size of the compressed data, we will increase the size later if needed.
-	*data = malloc(compressed_size * 10);
-
-	// Check the return value of the memory allocation.
-	if (*data == NULL)
+	if (ret != BZ_OK)
 	{
-		perror("Error: Bzip2_Decompress() failed: malloc() failed");
-		BZ2_bzDecompressEnd(strm);
-		free(strm);
+		Bzip2_print_error("BZ2_bzDecompressInit()", ret);
 		return 1;
 	}
 
-	// Set the output buffer.
-	strm->next_out = (char*)*data;
-	strm->avail_out = (compressed_size * 10);
+	// Allocate memory for the decompressed data
+	*data = malloc(compressed_size * 10); // A rough estimate for the decompressed size
 
-	while (true)
+	if (*data == NULL)
 	{
-		// Check if the output buffer is full.
-		if (strm->avail_out == 0)
-		{
-			// Increase the size of the output buffer.
-			*data = realloc(*data, strm->total_out_lo32 * 2);
-
-			// Check the return value of the memory allocation.
-			if (*data == NULL)
-			{
-				perror("Error: Bzip2_Decompress() failed: realloc() failed");
-				BZ2_bzDecompressEnd(strm);
-				free(strm);
-				free(*data);
-				return 1;
-			}
-
-			// Set the output buffer, as the memory address of the output buffer might have changed.
-			strm->next_out = (char*)*data + strm->total_out_lo32;
-			strm->avail_out = strm->total_out_lo32;
-		}
-
-		// Check if the input buffer is empty - if yes, break the loop, as we have decompressed all the data.
-		if (strm->avail_in == 0)
-			break;
-
-		// Decompress the data.
-		ret = BZ2_bzDecompress(strm);
-
-		// Check the return value of the decompression function.
-		if (ret != BZ_OK && ret != BZ_STREAM_END)
-		{
-			Bzip2_print_error("Bzip2_Decompress()", ret);
-			BZ2_bzDecompressEnd(strm);
-			free(strm);
-			free(*data);
-			return 1;
-		}
+		perror("Error: Bzip2_Decompress() failed: malloc() failed");
+		return 1;
 	}
 
-	ret = BZ2_bzDecompressEnd(strm);
+	// Perform the decompression
+	bzs.next_in = compressed_data;
+	bzs.avail_in = compressed_size;
+	bzs.next_out = *data;
+	bzs.avail_out = compressed_size * 10;
 
-	// Check the return value of the finish function.
-	if (ret != BZ_STREAM_END)
+	ret = BZ2_bzDecompress(&bzs);
+
+	if (ret != BZ_OK && ret != BZ_STREAM_END)
 	{
-		Bzip2_print_error("Bzip2_Decompress()", ret);
-		free(strm);
+		Bzip2_print_error("BZ2_bzDecompress()", ret);
+		BZ2_bzDecompressEnd(&bzs);
 		free(*data);
 		return 1;
 	}
 
-	// Set the size of the decompressed data, free the memory of the stream and return.
-	*size = strm->total_out_lo32;
-	free(strm);
+	// Set the decompressed size
+	*size = compressed_size * 10 - bzs.avail_out;
+
+	// Clean up the Bzip2 stream
+	ret = BZ2_bzDecompressEnd(&bzs);
+
+	if (ret != BZ_OK)
+	{
+		Bzip2_print_error("BZ2_bzDecompressEnd()", ret);
+		free(*data);
+		return 1;
+	}
 
 	if (DEBUG_MESSAGES)
 		fprintf(stdout, "Bzip2_Decompress(): Decompressed %d bytes to %d bytes\n", compressed_size, *size);
@@ -227,7 +155,7 @@ void Bzip2_print_error(const char *func_name, int bzerror) {
 			fprintf(stdout, "%s: Operation completed successfully.\n", func_name);
 			break;
 		}
-		
+
 		case BZ_CONFIG_ERROR:
 		{
 			fprintf(stderr, "%s: Configuration error. Please check the library was compiled correctly.\n", func_name);
@@ -284,7 +212,7 @@ void Bzip2_print_error(const char *func_name, int bzerror) {
 
 		default:
 		{
-			fprintf(stderr, "%s: Unknown error. Please check the error code against the Bzip2 documentation.\n", func_name);
+			fprintf(stderr, "%s: Unknown error. Please check the error code against the Bzip2 documentation. Error code: %d\n", func_name, bzerror);
 			break;
 		}
 	}

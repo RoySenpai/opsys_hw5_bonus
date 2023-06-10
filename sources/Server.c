@@ -238,8 +238,6 @@ int main(void) {
 					return 1;
 				}
 
-				mail_id = ntohl(mail_id);
-
 				PNode current_node = mail_list->head;
 
 				while (current_node != NULL)
@@ -252,7 +250,7 @@ int main(void) {
 						break;
 					}
 
-					if (mail_id == 0)
+					if (mail_id == 1)
 						break;
 
 					mail_id--;

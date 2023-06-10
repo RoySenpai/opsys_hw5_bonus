@@ -14,22 +14,22 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
-*/
+ */
 
 /*************************************************************************************/
-/* 
+/*
  * 							NOTICE:
  *		Parts of this code are taken from the following source:
  * 					http://www.bastet.com/
- * 
+ *
  * The code was modified to fit the needs of this assignment.
- * 
+ *
  * Copy of the header license notice:
- * 
+ *
  * UUENCODE - a Win32 utility to uuencode single files.
  * UUDECODE - a Win32 utility to uudecode single files.
  * Copyright (C) 1998 Clem Dye
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -52,6 +52,7 @@
 #include <string.h>
 
 int UUEncode(const char *data, const uint32_t data_size, char **encoded_data, uint32_t *encoded_data_size) {
+	// Calculate the size of the encoded data
 	// Force *encoded_data to be NULL as we allocate the data in this function.
 	if (data == NULL || encoded_data == NULL || encoded_data_size == NULL || *encoded_data != NULL)
 	{
@@ -68,66 +69,32 @@ int UUEncode(const char *data, const uint32_t data_size, char **encoded_data, ui
 	if (DEBUG_MESSAGES)
 		fprintf(stdout, "UUEncode(): Encoding data of size %d.\n", data_size);
 
-	int ch = 0, n = 0, idx = 0;
-	int bytes_to_encode = data_size;
-	int encoded_bytes = 0;
-	int encoded_data_size_temp = 0;
-	register char *p = NULL;
-	char buf[80], outbuf[250];
+	*encoded_data_size = (data_size / 3) * 4;
 
-	// Calculate the size of the encoded data
-	encoded_data_size_temp = (bytes_to_encode / 3) * 4;
-
-	// Padding with zeros if needed, and calculate the size of the encoded data
-	if (bytes_to_encode % 3 != 0)
-		encoded_data_size_temp += 4;
+	if (data_size % 3 != 0)
+		*encoded_data_size += 4;
 
 	// Allocate memory for the encoded data
-	*encoded_data = (char *) malloc(encoded_data_size_temp * sizeof(char));
+	*encoded_data = (char *)malloc(*encoded_data_size + 1); // +1 for null terminator
 
-	// Check if the allocation succeeded
 	if (*encoded_data == NULL)
 	{
-		fprintf(stderr, "Error: UUEncode(): Failed to allocate memory for the encoded data.\n");
+		fprintf(stderr, "Memory allocation failed for encoded data.\n");
 		return 1;
 	}
 
-	// Encode the data
-	while (bytes_to_encode > 0)
+	// Perform UUEncode algorithm
+	uint32_t i, j;
+	for (i = 0, j = 0; i < data_size; i += 3, j += 4)
 	{
-		n = bytes_to_encode > 44 ? 44 : bytes_to_encode;
-		if (n == 0)
-			break;
-
-		memcpy(buf, data + encoded_bytes, n);
-
-		idx = 0;
-		ch = ENC(n);
-		outbuf[idx++] = ch;
-
-		for (p = buf; n > 0; n -= 3, p += 3)
-		{
-			ch = *p >> 2;
-			ch = ENC(ch);
-			outbuf[idx++] = ch;
-			ch = (((*p << 4) & 060) | ((p[1] >> 4) & 017));
-			ch = ENC(ch);
-			outbuf[idx++] = ch;
-			ch = (((p[1] << 2) & 074) | ((p[2] >> 6) & 03));
-			ch = ENC(ch);
-			outbuf[idx++] = ch;
-			ch = p[2] & 077;
-			ch = ENC(ch);
-			outbuf[idx++] = ch;
-		}
-
-		outbuf[idx++] = '\n';
-		memcpy(*encoded_data + encoded_bytes, outbuf, idx);
-		encoded_bytes += idx;
-		bytes_to_encode -= 44;
+		(*encoded_data)[j] = (data[i] & 0xfc) >> 2;
+		(*encoded_data)[j + 1] = ((data[i] & 0x03) << 4) | ((data[i + 1] & 0xf0) >> 4);
+		(*encoded_data)[j + 2] = ((data[i + 1] & 0x0f) << 2) | ((data[i + 2] & 0xc0) >> 6);
+		(*encoded_data)[j + 3] = data[i + 2] & 0x3f;
 	}
 
-	*encoded_data_size = (uint32_t)encoded_bytes;
+	// Append newline character to the end of encoded data
+	(*encoded_data)[*encoded_data_size] = '\0';
 
 	if (DEBUG_MESSAGES)
 		fprintf(stdout, "UUEncode(): Encoded data size is %d.\n", *encoded_data_size);
@@ -151,62 +118,37 @@ int UUDecode(const char *encoded_data, const uint32_t encoded_data_size, char **
 
 	if (DEBUG_MESSAGES)
 		fprintf(stdout, "UUDecode(): Decoding data of size %d.\n", encoded_data_size);
-
-	int ch = 0, n = 0, idx = 0;
-	int bytes_to_decode = encoded_data_size;
-	int decoded_bytes = 0;
-	int data_size_temp = 0;
-	register char *p;
-	char buf[80], outbuf[250];
-
+	
 	// Calculate the size of the decoded data
-	data_size_temp = (bytes_to_decode / 4) * 3;
+	*data_size = (encoded_data_size / 4) * 3;
+	if (encoded_data[encoded_data_size - 1] == '=')
+	{
+		*data_size -= 1;
 
-	// Padding with zeros if needed, and calculate the size of the decoded data
-	if (bytes_to_decode % 4 != 0)
-		data_size_temp += 3;
+		if (encoded_data[encoded_data_size - 2] == '=')
+			*data_size -= 1;
+	}
 
 	// Allocate memory for the decoded data
-	*data = (char *) malloc(data_size_temp * sizeof(char));
+	*data = (char *) malloc(*data_size + 1); // +1 for null terminator
 
-	// Check if the allocation succeeded
 	if (*data == NULL)
 	{
-		fprintf(stderr, "Error: UUDecode(): Failed to allocate memory for the decoded data.\n");
+		fprintf(stderr, "Memory allocation failed for decoded data.\n");
 		return 1;
 	}
 
-	// Decode the data
-	while (bytes_to_decode > 0)
+	// Perform UUDecode algorithm
+	uint32_t i, j;
+	for (i = 0, j = 0; i < encoded_data_size; i += 4, j += 3)
 	{
-		n = bytes_to_decode > 61 ? 61 : bytes_to_decode;
-		if (n == 0)
-			break;
-
-		memcpy(buf, encoded_data + decoded_bytes, n);
-
-		idx = 0;
-		ch = DEC(buf[idx++]);
-		n = ch;
-		if (n <= 0)
-			break;
-
-		for (p = buf + 1; n > 0; n -= 4, p += 4)
-		{
-			ch = DEC(p[0]) << 2 | DEC(p[1]) >> 4;
-			outbuf[idx++] = ch;
-			ch = DEC(p[1]) << 4 | DEC(p[2]) >> 2;
-			outbuf[idx++] = ch;
-			ch = DEC(p[2]) << 6 | DEC(p[3]);
-			outbuf[idx++] = ch;
-		}
-
-		memcpy(*data + decoded_bytes, outbuf, idx);
-		decoded_bytes += idx;
-		bytes_to_decode -= 61;
+		(*data)[j] = (encoded_data[i] << 2) | ((encoded_data[i + 1] & 0x30) >> 4);
+		(*data)[j + 1] = ((encoded_data[i + 1] & 0x0f) << 4) | ((encoded_data[i + 2] & 0x3c) >> 2);
+		(*data)[j + 2] = ((encoded_data[i + 2] & 0x03) << 6) | (encoded_data[i + 3] & 0x3f);
 	}
 
-	*data_size = (uint32_t)decoded_bytes;
+	// Append null terminator to the end of decoded data
+	(*data)[*data_size] = '\0';
 
 	if (DEBUG_MESSAGES)
 		fprintf(stdout, "UUDecode(): Decoded data size is %d.\n", *data_size);

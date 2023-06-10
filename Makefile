@@ -17,7 +17,7 @@ CC = gcc
 CFLAGS = -Wall -Wextra -Werror -std=c11 -g -pedantic -I$(SOURCE_PATH)
 
 # Libraries to link.
-LIBS = -lbz2 -lz -lssl -lcrypto
+LIBS = -lbz2 -lcrypto
 
 # Enable multithreading.
 PFLAGS = -pthread
